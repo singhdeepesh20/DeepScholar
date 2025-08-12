@@ -1,4 +1,4 @@
-iimport os
+import os
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -9,8 +9,7 @@ from langchain.llms import HuggingFaceHub
 from langchain.agents import initialize_agent, Tool
 from langchain_community.tools import DuckDuckGoSearchRun
 
-# ----------------------------
-# 1. Load Secrets from Streamlit
+
 # ----------------------------
 HF_TOKEN = st.secrets.get("HF_TOKEN", None)
 if not HF_TOKEN:
@@ -19,14 +18,12 @@ if not HF_TOKEN:
 
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = HF_TOKEN
 
-# ----------------------------
-# 2. App Title
+
 # ----------------------------
 st.title("🔍 DeepQuery.AI")
 st.write("Search online + PDF knowledge in one agent.")
 
-# ----------------------------
-# 3. Upload PDF
+
 # ----------------------------
 uploaded_file = st.file_uploader("📄 Upload PDF", type=["pdf"])
 pdf_vectorstore = None
@@ -46,12 +43,11 @@ if uploaded_file:
     pdf_vectorstore = FAISS.from_documents(docs, embeddings)
     st.success("✅ PDF loaded & indexed.")
 
-# ----------------------------
-# 4. Create Tools
+
 # ----------------------------
 tools = []
 
-# PDF QA Tool
+
 if pdf_vectorstore:
     pdf_retriever = pdf_vectorstore.as_retriever(search_kwargs={"k": 3})
     pdf_qa_chain = RetrievalQA.from_chain_type(
@@ -69,7 +65,7 @@ if pdf_vectorstore:
         )
     )
 
-# Web Search Tool
+
 search_tool = DuckDuckGoSearchRun()
 tools.append(
     Tool(
@@ -79,8 +75,7 @@ tools.append(
     )
 )
 
-# ----------------------------
-# 5. Initialize Agent
+
 # ----------------------------
 llm = HuggingFaceHub(
     repo_id="tiiuae/falcon-7b-instruct",
@@ -94,8 +89,7 @@ agent = initialize_agent(
     verbose=True
 )
 
-# ----------------------------
-# 6. User Query
+
 # ----------------------------
 query = st.text_input("💬 Ask me anything...")
 if query:
