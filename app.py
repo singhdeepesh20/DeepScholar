@@ -1,134 +1,127 @@
 import os
 import streamlit as st
-from langchain_community.tools import DuckDuckGoSearchRun, ArxivQueryRun, WikipediaQueryRun
-from langchain_community.utilities import WikipediaAPIWrapper, ArxivAPIWrapper
-from langchain_groq import ChatGroq
-from langchain.agents import initialize_agent, AgentType
-from langchain.callbacks.streamlit import StreamlitCallbackHandler
-from langchain.chains import ConversationalRetrievalChain
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_groq import ChatGroq
+from langchain.agents import initialize_agent, Tool, AgentType
+from langchain.chains import RetrievalQA
 from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 
-# ========================
-# Hugging Face API Key from Streamlit Secrets
-HF_TOKEN = st.secrets["HF_TOKEN"]
 
-# ========================
-st.sidebar.title("Settings")
-mode = st.sidebar.radio("Choose Mode:", ["Search Mode", "PDF Mode"])
-groq_api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password")
 
+# -----------------------
+st.set_page_config(page_title="DeepSearch – Intelligent web & document exploration agent", layout="wide")
+st.title(" DeepSearch – Intelligent web & document exploration agent")
+
+
+
+# -----------------------
+HF_KEY = st.secrets["HUGGINGFACE_API_KEY"]
+
+
+
+# -----------------------
+groq_api_key = st.text_input("🔑 Enter your Groq API Key:", type="password")
 if not groq_api_key:
-    st.sidebar.warning("Please enter your Groq API Key to continue.")
+    st.warning("Please enter your Groq API key to continue.")
+    st.stop()
 
-# ========================
+
+
+# -----------------------
+llm = ChatGroq(
+    groq_api_key=groq_api_key,
+    model_name="llama3-8b-8192",
+    temperature=0
+)
+
+
+
+# -----------------------
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    token=HF_KEY
+)
+
+
+
+# -----------------------
 if "search_memory" not in st.session_state:
     st.session_state.search_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
 if "pdf_memory" not in st.session_state:
     st.session_state.pdf_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
-# ========================
-def get_llm():
-    return ChatGroq(
-        groq_api_key=groq_api_key,
-        model_name="Llama3-8b-8192",
-        streaming=True
-    )
 
-# ========================
-def search_mode():
-    st.title("🔍 DeepSearch – Intelligent Web & Academic Exploration")
 
-    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
-    wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
-    search = DuckDuckGoSearchRun(name="Search")
-    arxiv = ArxivQueryRun(api_wrapper=ArxivAPIWrapper())
+# -----------------------
+mode = st.radio("Choose mode:", ["Search Mode", "PDF Mode"])
 
-    llm = get_llm()
-    tools = [search, arxiv, wiki]
+
+
+# -----------------------
+if mode == "Search Mode":
+    st.subheader(" Web Search Agent")
+
+    def web_search_tool(query):
+        # In real use, integrate an API or scraper here
+        return f"Simulated search results for: {query}"
+
+    tools = [
+        Tool(
+            name="WebSearch",
+            func=web_search_tool,
+            description="Search the internet for information"
+        )
+    ]
 
     search_agent = initialize_agent(
         tools,
         llm,
-        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        agent=AgentType.OPENAI_FUNCTIONS,  
         memory=st.session_state.search_memory,
         handle_parsing_errors=True,
-        max_iterations=3,  # Prevents infinite search loops
-        early_stopping_method="generate",  # Forces output if stuck
         verbose=True
     )
 
-    for msg in st.session_state.search_memory.chat_memory.messages:
-        st.chat_message(msg.type).write(msg.content)
+    query = st.text_input("Ask me anything:")
+    if st.button("Run Search") and query:
+        try:
+            response = search_agent.run(query)
+        except Exception as e:
+            response = f"⚠ Search failed: {e}"
+        st.write(response)
 
-    if prompt := st.chat_input("Ask me anything..."):
-        with st.chat_message("user"):
-            st.write(prompt)
-        st.session_state.search_memory.chat_memory.add_user_message(prompt)
 
-        with st.chat_message("assistant"):
-            st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
-            try:
-                response = search_agent.run(prompt, callbacks=[st_cb])
-            except Exception as e:
-                response = f"⚠️ Error: {str(e)}"
-            st.write(response)
-        st.session_state.search_memory.chat_memory.add_ai_message(response)
 
-# ========================
-def pdf_mode():
-    st.title("📄 PDF Q&A")
+# -----------------------
+elif mode == "PDF Mode":
+    st.subheader("DocuMind")
 
-    uploaded_file = st.file_uploader("Upload your PDF", type=["pdf"])
+    uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
     if uploaded_file:
-        with open("temp.pdf", "wb") as f:
-            f.write(uploaded_file.read())
+        pdf_path = f"/tmp/{uploaded_file.name}"
+        with open(pdf_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-        loader = PyPDFLoader("temp.pdf")
-        pages = loader.load()
+        loader = PyPDFLoader(pdf_path)
+        docs = loader.load()
 
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            cache_folder=".",
-            token=HF_TOKEN  # Updated from use_auth_token
-        )
-
-        vectorstore = FAISS.from_documents(pages, embeddings)
+        vectorstore = FAISS.from_documents(docs, embeddings)
         retriever = vectorstore.as_retriever()
 
-        llm = get_llm()
-        pdf_chain = ConversationalRetrievalChain.from_llm(
-            llm,
-            retriever,
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            retriever=retriever,
+            chain_type="stuff",
             memory=st.session_state.pdf_memory
         )
 
-        for msg in st.session_state.pdf_memory.chat_memory.messages:
-            st.chat_message(msg.type).write(msg.content)
-
-        if prompt := st.chat_input("Ask something about the PDF..."):
-            with st.chat_message("user"):
-                st.write(prompt)
-            st.session_state.pdf_memory.chat_memory.add_user_message(prompt)
-
-            with st.chat_message("assistant"):
-                try:
-                    result = pdf_chain({"question": prompt})
-                    answer = result["answer"]
-                except Exception as e:
-                    answer = f"⚠️ Error: {str(e)}"
-                st.write(answer)
-            st.session_state.pdf_memory.chat_memory.add_ai_message(answer)
-
-# ========================
-if groq_api_key:
-    if mode == "Search Mode":
-        search_mode()
-    elif mode == "PDF Mode":
-        pdf_mode()
-else:
-    st.warning("Please enter your Groq API Key in the sidebar.")
-
+        pdf_query = st.text_input("Ask a question about the PDF:")
+        if st.button("Run PDF Q&A") and pdf_query:
+            try:
+                response = qa_chain.run(pdf_query)
+            except Exception as e:
+                response = f"⚠️ PDF Q&A failed: {e}"
+            st.write(response)
