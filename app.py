@@ -1,4 +1,5 @@
 import os
+import tempfile
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -71,8 +72,15 @@ elif mode == "PDF Chat":
     uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
     if uploaded_file:
         with st.spinner("Processing PDF..."):
-            loader = PyPDFLoader(uploaded_file)
+            # Save uploaded file to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(uploaded_file.getbuffer())
+                tmp_file_path = tmp_file.name
+
+            # Load PDF from temporary file path
+            loader = PyPDFLoader(tmp_file_path)
             docs = loader.load()
+
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
             split_docs = text_splitter.split_documents(docs)
 
