@@ -19,7 +19,7 @@ HF_TOKEN = st.secrets["HF_TOKEN"]  # Hugging Face API Key from Streamlit Secrets
 
 
 # ========================
-st.sidebar.title("🔧 Settings")
+st.sidebar.title("Settings")
 mode = st.sidebar.radio("Choose Mode:", ["Search Mode", "PDF Mode"])
 groq_api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password")
 
@@ -49,7 +49,7 @@ def get_llm():
 
 # ========================
 def search_mode():
-    st.title("🔍 AI Search Agent")
+    st.title("DeepSearch – Intelligent web & document exploration agent")
 
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
