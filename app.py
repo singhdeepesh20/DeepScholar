@@ -11,12 +11,9 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.memory import ConversationBufferMemory
 
-
-
 # ========================
-HF_TOKEN = st.secrets["HF_TOKEN"]  # Hugging Face API Key from Streamlit Secrets
-
-
+# Hugging Face API Key from Streamlit Secrets
+HF_TOKEN = st.secrets["HF_TOKEN"]
 
 # ========================
 st.sidebar.title("Settings")
@@ -26,16 +23,12 @@ groq_api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password"
 if not groq_api_key:
     st.sidebar.warning("Please enter your Groq API Key to continue.")
 
-
-
 # ========================
 if "search_memory" not in st.session_state:
     st.session_state.search_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 if "pdf_memory" not in st.session_state:
     st.session_state.pdf_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-
 
 # ========================
 def get_llm():
@@ -45,12 +38,9 @@ def get_llm():
         streaming=True
     )
 
-
-
 # ========================
 def search_mode():
-    st.title("DeepSearch – Intelligent web & document exploration agent")
-
+    st.title("🔍 DeepSearch – Intelligent Web & Academic Exploration")
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=200)
     wiki = WikipediaQueryRun(api_wrapper=api_wrapper)
@@ -65,7 +55,10 @@ def search_mode():
         llm,
         agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         memory=st.session_state.search_memory,
-        handle_parsing_errors=True
+        handle_parsing_errors=True,
+        max_iterations=3,  # Prevents infinite search loops
+        early_stopping_method="generate",  # Forces output if stuck
+        verbose=True
     )
 
     for msg in st.session_state.search_memory.chat_memory.messages:
@@ -78,7 +71,10 @@ def search_mode():
 
         with st.chat_message("assistant"):
             st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
-            response = search_agent.run(prompt, callbacks=[st_cb])
+            try:
+                response = search_agent.run(prompt, callbacks=[st_cb])
+            except Exception as e:
+                response = f"⚠️ Error: {str(e)}"
             st.write(response)
         st.session_state.search_memory.chat_memory.add_ai_message(response)
 
@@ -94,7 +90,12 @@ def pdf_mode():
         loader = PyPDFLoader("temp.pdf")
         pages = loader.load()
 
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", cache_folder=".", use_auth_token=HF_TOKEN)
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            cache_folder=".",
+            token=HF_TOKEN  # Updated from use_auth_token
+        )
+
         vectorstore = FAISS.from_documents(pages, embeddings)
         retriever = vectorstore.as_retriever()
 
@@ -114,11 +115,13 @@ def pdf_mode():
             st.session_state.pdf_memory.chat_memory.add_user_message(prompt)
 
             with st.chat_message("assistant"):
-                result = pdf_chain({"question": prompt})
-                answer = result["answer"]
+                try:
+                    result = pdf_chain({"question": prompt})
+                    answer = result["answer"]
+                except Exception as e:
+                    answer = f"⚠️ Error: {str(e)}"
                 st.write(answer)
             st.session_state.pdf_memory.chat_memory.add_ai_message(answer)
-
 
 # ========================
 if groq_api_key:
@@ -128,3 +131,4 @@ if groq_api_key:
         pdf_mode()
 else:
     st.warning("Please enter your Groq API Key in the sidebar.")
+
