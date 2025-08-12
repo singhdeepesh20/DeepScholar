@@ -16,8 +16,14 @@ st.title("DeepSearch – Intelligent Web & Document Exploration Agent")
 
 huggingface_api_key = st.secrets.get("HUGGINGFACE_API_KEY", None)
 if not huggingface_api_key:
-    st.error("Hugging Face API key not found in Streamlit secrets. Please add it to your `secrets.toml`.")
+    st.error("Hugging Face API key not found in Streamlit secrets. Please add it to your secrets.toml.")
     st.stop()
+
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_key
+
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
 
 groq_api_key = st.text_input("Enter your Groq API Key:", type="password")
 if not groq_api_key:
