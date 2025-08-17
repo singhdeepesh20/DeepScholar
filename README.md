@@ -1,4 +1,4 @@
-# DeepScholar → Academic-focused assistant (ArXiv + PDFs)
+# DeepScholar → Academic-focused assistant 
 
 
 
