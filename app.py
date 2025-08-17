@@ -17,7 +17,7 @@ from langchain.chains import RetrievalQA
 
 load_dotenv()
 
-st.set_page_config(page_title="AI Search & PDF Chat")
+st.set_page_config(page_title="DeepScholar")
 
 st.title("DeepScholar - AI Search & PDF Chat")
 st.write("Select a mode from the sidebar: **Web Search** or **PDF Chat**")
