@@ -3,7 +3,7 @@ import tempfile
 import streamlit as st
 from dotenv import load_dotenv
 
-# LangChain + Groq
+
 from langchain_groq import ChatGroq
 from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper
 from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun, DuckDuckGoSearchRun
@@ -17,25 +17,25 @@ from langchain.chains import RetrievalQA
 
 load_dotenv()
 
-st.set_page_config(page_title="Groq AI Search & PDF Chat", page_icon="🔎")
+st.set_page_config(page_title="AI Search & PDF Chat")
 
-st.title("🔎 LangChain - Groq AI Search & PDF Chat")
+st.title("DeepScholar - AI Search & PDF Chat")
 st.write("Select a mode from the sidebar: **Web Search** or **PDF Chat**")
 
-# Sidebar for settings
+
 st.sidebar.title("Settings")
 api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password")
 mode = st.sidebar.radio("Select Mode:", ["Web Search", "PDF Chat"])
 
-# Stop if API key not provided
+
 if not api_key:
     st.warning("Please enter your Groq API Key in the sidebar to continue.")
     st.stop()
 
-# Load LLM
+
 llm = ChatGroq(groq_api_key=api_key, model_name="Llama3-8b-8192", streaming=True)
 
-# Web Search Mode
+
 if mode == "Web Search":
     arxiv_wrapper = ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
     arxiv = ArxivQueryRun(api_wrapper=arxiv_wrapper)
@@ -67,17 +67,17 @@ if mode == "Web Search":
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.write(response)
 
-# PDF Chat Mode
+
 elif mode == "PDF Chat":
     uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
     if uploaded_file:
         with st.spinner("Processing PDF..."):
-            # Save uploaded file to a temporary file
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(uploaded_file.getbuffer())
                 tmp_file_path = tmp_file.name
 
-            # Load PDF from temporary file path
+
             loader = PyPDFLoader(tmp_file_path)
             docs = loader.load()
 
