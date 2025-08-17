@@ -42,6 +42,6 @@ A research-grade Streamlit application that integrates web information retrieval
 Deepesh Singh
 AI & Agentic Systems Builder | Bridging Research and Real-World Applications
 
-🌐 LinkedIn
+🌐 LinkedIn: https://www.linkedin.com/in/contactdeepeshsingh/
 
 💻 GitHub
