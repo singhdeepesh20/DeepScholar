@@ -4,7 +4,8 @@
 
 A research-grade Streamlit application that integrates web information retrieval and document-grounded question answering into a unified conversational interface. Built with LangChain, powered by Groq’s low-latency LLMs, and equipped with state-of-the-art embedding and retrieval pipelines, this project demonstrates how to combine autonomous agents with retrieval-augmented generation (RAG) for practical, multimodal knowledge access.
 
-✨ Core features
+✨ Core features:
+
 🧭 Web Search Agent
 
 -> Tool-augmented reasoning via LangChain Agents.
